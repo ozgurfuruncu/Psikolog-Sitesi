@@ -1,0 +1,33 @@
+{
+  "runner": "Playwright Chromium",
+  "stats": {
+    "startTime": "2026-11-24T15:56:09.071Z",
+    "duration": 37923.379,
+    "expected": 2,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "tests": [
+    {
+      "title": "mobile layouts, keyboard menu, forms and screenshots",
+      "passed": true,
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3306
+        }
+      ]
+    },
+    {
+      "title": "automated WCAG checks for public, authentication and client pages",
+      "passed": true,
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2916
+        }
+      ]
+    }
+  ]
+}

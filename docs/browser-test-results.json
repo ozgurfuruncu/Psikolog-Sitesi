@@ -1,0 +1,113 @@
+{
+  "runner": "Playwright Chromium",
+  "stats": {
+    "startTime": "2026-11-24T16:04:29.166Z",
+    "duration": 68409.203,
+    "expected": 10,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "tests": [
+    {
+      "title": "complete UI journey: register, verify, alternative, pay, room, feedback",
+      "passed": true,
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 9758
+        }
+      ]
+    },
+    {
+      "title": "authorization, IDOR, CSRF, invalid webhooks and role injection",
+      "passed": true,
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2509
+        }
+      ]
+    },
+    {
+      "title": "certificate validation, redaction gate and private file authorization",
+      "passed": true,
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2124
+        }
+      ]
+    },
+    {
+      "title": "account preferences, owned export, support and data-request persistence",
+      "passed": true,
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2249
+        }
+      ]
+    },
+    {
+      "title": "admin CRUD, calendar views and protected page smoke checks",
+      "passed": true,
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 7063
+        }
+      ]
+    },
+    {
+      "title": "desktop screenshots and public navigation without runtime errors",
+      "passed": true,
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3693
+        }
+      ]
+    },
+    {
+      "title": "mobile layouts, keyboard menu, forms and screenshots",
+      "passed": true,
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2313
+        }
+      ]
+    },
+    {
+      "title": "sensitive forms stay safe before hydration and without JavaScript",
+      "passed": true,
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 298
+        }
+      ]
+    },
+    {
+      "title": "login requests are throttled in the persisted database",
+      "passed": true,
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 483
+        }
+      ]
+    },
+    {
+      "title": "automated WCAG checks for public, authentication and client pages",
+      "passed": true,
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2472
+        }
+      ]
+    }
+  ]
+}

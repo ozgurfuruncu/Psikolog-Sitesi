@@ -1,0 +1,483 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  CLIENT
+  ADMIN
+}
+
+enum AppointmentStatus {
+  PENDING_APPROVAL
+  ALTERNATIVE_PROPOSED
+  AWAITING_PAYMENT
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+  CANCELLED
+  EXPIRED
+  NO_SHOW
+}
+
+enum PaymentStatus {
+  NOT_REQUIRED
+  PENDING
+  PAID
+  FAILED
+  REFUND_PENDING
+  REFUNDED
+}
+
+model User {
+  id             String                  @id
+  name           String
+  email          String                  @unique
+  emailVerified  Boolean                 @default(false)
+  image          String?
+  role           Role                    @default(CLIENT)
+  adultConfirmed Boolean                 @default(false)
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  sessions       Session[]
+  accounts       Account[]
+  profile        ClientProfile?
+  appointments   Appointment[]
+  notifications  Notification[]
+  preferences    NotificationPreference?
+  consents       ConsentRecord[]
+  dataRequests   DataRequest[]
+  waitlist       WaitlistEntry[]
+  auditLogs      AuditLog[]
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+}
+
+model RateLimit {
+  id          String @id @default(cuid())
+  key         String @unique
+  count       Int
+  lastRequest BigInt
+}
+
+model ClientProfile {
+  id       String  @id @default(cuid())
+  userId   String  @unique
+  phone    String?
+  timezone String  @default("Europe/Istanbul")
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PsychologistProfile {
+  id            String        @id @default("primary")
+  name          String        @default("Uzman bilgileri hazırlanıyor")
+  title         String        @default("Profesyonel unvan eklenecek")
+  biography     String        @default("Bu alan, uzmanın kendi bilgileri ve mesleki yetkileri doğrulandıktan sonra güncellenecektir.")
+  experience    String        @default("")
+  approaches    String        @default("")
+  areas         String        @default("")
+  languages     String        @default("Türkçe")
+  contactEmail  String        @default("")
+  contactPhone  String        @default("")
+  photoFileId   String?
+  isPlaceholder Boolean       @default(true)
+  updatedAt     DateTime      @updatedAt
+  education     Education[]
+  certificates  Certificate[]
+}
+
+model Education {
+  id            String              @id @default(cuid())
+  profileId     String              @default("primary")
+  institution   String
+  qualification String
+  year          Int?
+  published     Boolean             @default(false)
+  order         Int                 @default(0)
+  profile       PsychologistProfile @relation(fields: [profileId], references: [id])
+}
+
+model Certificate {
+  id                 String              @id @default(cuid())
+  profileId          String              @default("primary")
+  title              String
+  institution        String
+  completedAt        DateTime?
+  description        String              @default("")
+  fileId             String?             @unique
+  verificationUrl    String?
+  published          Boolean             @default(false)
+  redactionConfirmed Boolean             @default(false)
+  isPlaceholder      Boolean             @default(true)
+  order              Int                 @default(0)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  profile            PsychologistProfile @relation(fields: [profileId], references: [id])
+}
+
+model PrivateFile {
+  id         String   @id @default(cuid())
+  storageKey String   @unique
+  mimeType   String
+  size       Int
+  purpose    String
+  createdAt  DateTime @default(now())
+}
+
+model Service {
+  id              String        @id @default(cuid())
+  name            String
+  description     String
+  durationMinutes Int           @default(50)
+  priceKurus      Int           @default(0)
+  currency        String        @default("TRY")
+  paymentRequired Boolean       @default(false)
+  active          Boolean       @default(true)
+  order           Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  appointments    Appointment[]
+}
+
+model AvailabilityRule {
+  id          String  @id @default(cuid())
+  dayOfWeek   Int
+  startMinute Int
+  endMinute   Int
+  active      Boolean @default(true)
+  date        String?
+
+  @@index([dayOfWeek, active])
+}
+
+model BlockedTime {
+  id       String   @id @default(cuid())
+  startsAt DateTime
+  endsAt   DateTime
+  reason   String   @default("Müsait değil")
+
+  @@index([startsAt, endsAt])
+}
+
+model Appointment {
+  id                String                           @id @default(cuid())
+  clientId          String
+  serviceId         String
+  startsAt          DateTime
+  endsAt            DateTime
+  reservedUntil     DateTime
+  status            AppointmentStatus                @default(PENDING_APPROVAL)
+  holdExpiresAt     DateTime?
+  priceKurus        Int
+  currency          String                           @default("TRY")
+  durationMinutes   Int
+  cancellationHours Int                              @default(24)
+  createdAt         DateTime                         @default(now())
+  updatedAt         DateTime                         @updatedAt
+  client            User                             @relation(fields: [clientId], references: [id])
+  service           Service                          @relation(fields: [serviceId], references: [id])
+  history           AppointmentStatusHistory[]
+  alternatives      AlternativeAppointmentProposal[]
+  payment           Payment?
+  video             VideoSession?
+  feedback          Feedback?
+  consents          ConsentRecord[]
+
+  @@index([clientId, startsAt])
+  @@index([status, holdExpiresAt])
+  @@index([startsAt, reservedUntil])
+}
+
+model AppointmentStatusHistory {
+  id            String             @id @default(cuid())
+  appointmentId String
+  fromStatus    AppointmentStatus?
+  toStatus      AppointmentStatus
+  actorId       String?
+  reason        String             @default("")
+  createdAt     DateTime           @default(now())
+  appointment   Appointment        @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([appointmentId, createdAt])
+}
+
+model AlternativeAppointmentProposal {
+  id               String      @id @default(cuid())
+  appointmentId    String
+  startsAt         DateTime
+  endsAt           DateTime
+  previousStartsAt DateTime
+  previousEndsAt   DateTime
+  status           String      @default("PENDING")
+  createdAt        DateTime    @default(now())
+  appointment      Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id                String         @id @default(cuid())
+  appointmentId     String         @unique
+  status            PaymentStatus  @default(PENDING)
+  amountKurus       Int
+  currency          String         @default("TRY")
+  provider          String         @default("mock")
+  providerToken     String?        @unique
+  providerPaymentId String?        @unique
+  checkoutUrl       String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  appointment       Appointment    @relation(fields: [appointmentId], references: [id])
+  refunds           Refund[]
+  events            PaymentEvent[]
+}
+
+model PaymentEvent {
+  id        String   @id
+  paymentId String
+  createdAt DateTime @default(now())
+  payment   Payment  @relation(fields: [paymentId], references: [id])
+}
+
+model Refund {
+  id               String   @id @default(cuid())
+  paymentId        String
+  amountKurus      Int
+  status           String   @default("PENDING")
+  providerRefundId String?  @unique
+  createdAt        DateTime @default(now())
+  payment          Payment  @relation(fields: [paymentId], references: [id])
+}
+
+model VideoSession {
+  id            String      @id @default(cuid())
+  appointmentId String      @unique
+  roomId        String      @unique
+  provider      String      @default("mock")
+  endedAt       DateTime?
+  createdAt     DateTime    @default(now())
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
+}
+
+model Feedback {
+  id            String      @id @default(cuid())
+  appointmentId String      @unique
+  overall       Int
+  communication Int
+  booking       Int
+  technical     Int
+  comment       String      @default("")
+  createdAt     DateTime    @default(now())
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  kind      String
+  title     String
+  body      String
+  href      String    @default("/panel/bildirimler")
+  dedupeKey String    @unique
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+}
+
+model EmailDelivery {
+  id          String    @id @default(cuid())
+  recipient   String
+  subject     String
+  text        String
+  dedupeKey   String    @unique
+  status      String    @default("PENDING")
+  attempts    Int       @default(0)
+  availableAt DateTime  @default(now())
+  lockedUntil DateTime?
+  deliveredAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([status, availableAt])
+}
+
+model NotificationPreference {
+  id                 String  @id @default(cuid())
+  userId             String  @unique
+  email              Boolean @default(true)
+  reminders          Boolean @default(true)
+  feedbackInvitation Boolean @default(true)
+  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model BlogCategory {
+  id    String     @id @default(cuid())
+  name  String     @unique
+  posts BlogPost[]
+}
+
+model BlogPost {
+  id             String        @id @default(cuid())
+  slug           String        @unique
+  title          String
+  excerpt        String
+  content        String
+  categoryId     String?
+  imageFileId    String?
+  seoTitle       String?
+  seoDescription String?
+  published      Boolean       @default(false)
+  reviewed       Boolean       @default(false)
+  publishedAt    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  category       BlogCategory? @relation(fields: [categoryId], references: [id])
+
+  @@index([published, publishedAt])
+}
+
+model FAQ {
+  id        String  @id @default(cuid())
+  question  String
+  answer    String
+  published Boolean @default(false)
+  order     Int     @default(0)
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  published Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model SiteContent {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  title     String
+  body      String
+  published Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+}
+
+model ConsentRecord {
+  id              String       @id @default(cuid())
+  userId          String
+  appointmentId   String?
+  documentType    String
+  documentVersion String
+  acceptedAt      DateTime     @default(now())
+  user            User         @relation(fields: [userId], references: [id])
+  appointment     Appointment? @relation(fields: [appointmentId], references: [id])
+
+  @@index([userId, documentType])
+}
+
+model DataRequest {
+  id         String    @id @default(cuid())
+  userId     String
+  type       String
+  details    String    @default("")
+  status     String    @default("PENDING")
+  resolution String    @default("")
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+  user       User      @relation(fields: [userId], references: [id])
+}
+
+model WaitlistEntry {
+  id         String    @id @default(cuid())
+  userId     String
+  date       String
+  notifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+model SupportRequest {
+  id        String   @id @default(cuid())
+  email     String
+  name      String
+  subject   String
+  message   String
+  status    String   @default("OPEN")
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String
+  resourceId String
+  createdAt  DateTime @default(now())
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([resourceId, createdAt])
+}
+
+model SiteSettings {
+  id                   String   @id @default("primary")
+  siteName             String   @default("Durak")
+  timezone             String   @default("Europe/Istanbul")
+  bookingNoticeHours   Int      @default(4)
+  cancellationHours    Int      @default(24)
+  bufferMinutes        Int      @default(10)
+  holdHours            Int      @default(48)
+  paymentHoldHours     Int      @default(24)
+  reminderHours        Int[]    @default([24, 1])
+  contactText          String   @default("")
+  privacyVersion       String   @default("draft-1")
+  consentVersion       String   @default("draft-1")
+  cancellationText     String   @default("Randevunuzu en az 24 saat önce iptal edebilir veya değişiklik talep edebilirsiniz.")
+  productionAuthorized Boolean  @default(false)
+  updatedAt            DateTime @updatedAt
+}

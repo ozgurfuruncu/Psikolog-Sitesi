@@ -1,0 +1,129 @@
+erDiagram
+  User ||--o{ Session : owns
+  User ||--o{ Account : authenticates
+  User ||--o| ClientProfile : has
+  User ||--o| NotificationPreference : configures
+  User ||--o{ Appointment : requests
+  User ||--o{ Notification : receives
+  User ||--o{ ConsentRecord : accepts
+  User ||--o{ DataRequest : submits
+  User ||--o{ WaitlistEntry : joins
+  User o|--o{ AuditLog : performs
+  PsychologistProfile ||--o{ Education : publishes
+  PsychologistProfile ||--o{ Certificate : publishes
+  Service ||--o{ Appointment : describes
+  Appointment ||--o{ AppointmentStatusHistory : records
+  Appointment ||--o{ AlternativeAppointmentProposal : proposes
+  Appointment ||--o{ ConsentRecord : documents
+  Appointment ||--o| Payment : charges
+  Appointment ||--o| VideoSession : authorizes
+  Appointment ||--o| Feedback : evaluates
+  Payment ||--o{ PaymentEvent : deduplicates
+  Payment ||--o{ Refund : refunds
+  BlogCategory o|--o{ BlogPost : groups
+  User {
+    string id PK
+    string email UK
+    enum role
+    boolean emailVerified
+    boolean adultConfirmed
+  }
+  Appointment {
+    string id PK
+    string clientId FK
+    string serviceId FK
+    timestamp startsAt
+    timestamp endsAt
+    timestamp reservedUntil
+    timestamp holdExpiresAt
+    enum status
+    int priceKurus
+    int durationMinutes
+    int cancellationHours
+  }
+  Payment {
+    string id PK
+    string appointmentId FK,UK
+    int amountKurus
+    enum status
+    string providerToken UK
+    string providerPaymentId UK
+  }
+  Feedback {
+    string id PK
+    string appointmentId FK,UK
+    int overall
+    int communication
+    int booking
+    int technical
+    string comment
+  }
+  AvailabilityRule {
+    string id PK
+    int dayOfWeek
+    int startMinute
+    int endMinute
+    string date
+  }
+  BlockedTime {
+    string id PK
+    timestamp startsAt
+    timestamp endsAt
+  }
+  PrivateFile {
+    string id PK
+    string storageKey UK
+    string mimeType
+    int size
+  }
+  EmailDelivery {
+    string id PK
+    string dedupeKey UK
+    string status
+    int attempts
+    timestamp availableAt
+    timestamp lockedUntil
+  }
+  SiteSettings {
+    string id PK
+    int bookingNoticeHours
+    int cancellationHours
+    int bufferMinutes
+    int holdHours
+  }
+  FAQ {
+    string id PK
+    string question
+    boolean published
+    int order
+  }
+  Announcement {
+    string id PK
+    string title
+    boolean published
+  }
+  SiteContent {
+    string id PK
+    string key UK
+    string title
+    string body
+    boolean published
+  }
+  SupportRequest {
+    string id PK
+    string email
+    string message
+    string status
+  }
+  Verification {
+    string id PK
+    string identifier
+    string value
+    timestamp expiresAt
+  }
+  RateLimit {
+    string id PK
+    string key UK
+    int count
+    bigint lastRequest
+  }
