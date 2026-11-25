@@ -21,11 +21,13 @@ import { AdminCalendar } from "@/components/admin-calendar";
 import { AdminEditor, AdminForm, type EntityConfig } from "@/components/admin-editor";
 import {
   RunJobsButton,
+  PrepareReviewSession,
   BlockTimeForm,
   RemoveBlock,
   SupportAction,
   DataRequestAction,
   ProfilePhotoUpload,
+  BrandingUpload,
 } from "@/components/admin-tools";
 import {
   serviceConfig,
@@ -37,6 +39,7 @@ import {
   profileFields,
   settingsFields,
   siteContentConfig,
+  websiteFields,
 } from "@/lib/admin-config";
 import { Badge, EmptyState } from "@/components/ui";
 import {
@@ -49,6 +52,7 @@ import {
   addDays,
 } from "@/lib/i18n";
 import { isDemo } from "@/lib/env";
+import { getProfile, getSite } from "@/lib/site";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Yönetim paneli" };
 export default async function Admin({
@@ -61,6 +65,79 @@ export default async function Admin({
   const { section = [] } = await params,
     [tab, id] = section,
     user = await pageUser(true);
+  if (tab === "site-yonetimi") {
+    const [site, profile, education, certificates, services] = await Promise.all([
+      getSite(),
+      getProfile(),
+      db.education.findMany({ orderBy: { order: "asc" } }),
+      db.certificate.findMany({ orderBy: { order: "asc" } }),
+      db.service.findMany({ orderBy: { order: "asc" } }),
+    ]);
+    return (
+      <>
+        <Title
+          title="Site Yönetimi"
+          description="Site bilgilerinizi düzenleyin, kaydedin ve Siteyi görüntüle ile sonucu önizleyin."
+        />
+        <nav
+          className="button-row"
+          aria-label="Site yönetimi bölümleri"
+          style={{ marginBottom: 24, flexWrap: "wrap" }}
+        >
+          <a href="#genel" className="btn btn-outline btn-sm">
+            Genel Site Ayarları
+          </a>
+          <a href="#profil" className="btn btn-outline btn-sm">
+            Profil Bilgileri
+          </a>
+          <a href="#egitim" className="btn btn-outline btn-sm">
+            Eğitim Bilgileri
+          </a>
+          <a href="#sertifikalar" className="btn btn-outline btn-sm">
+            Sertifikalar
+          </a>
+          <Link href="/yonetim/uygunluk" className="btn btn-outline btn-sm">
+            Çalışma Saatleri
+          </Link>
+          <Link href="/yonetim/ayarlar" className="btn btn-outline btn-sm">
+            İptal Kuralları
+          </Link>
+        </nav>
+        <div className="settings-layout">
+          <div style={{ display: "grid", gap: 24 }}>
+            <section id="genel">
+              <AdminForm
+                endpoint="website"
+                title="Genel Site Ayarları"
+                fields={websiteFields}
+                values={serialize(site)}
+              />
+            </section>
+            <section id="profil">
+              <AdminForm
+                endpoint="profile"
+                title="Profil ve İletişim Bilgileri"
+                fields={profileFields}
+                values={serialize(profile)}
+              />
+            </section>
+          </div>
+          <div style={{ display: "grid", gap: 24, alignContent: "start" }}>
+            <BrandingUpload field="logoFileId" title="Site Logosu" />
+            <BrandingUpload field="faviconFileId" title="Favicon" />
+            <ProfilePhotoUpload />
+            <section id="egitim">
+              <AdminEditor config={educationConfig} records={serialize(education)} />
+            </section>
+            <section id="sertifikalar">
+              <AdminEditor config={certificateConfig} records={serialize(certificates)} />
+            </section>
+            <AdminEditor config={serviceConfig} records={serialize(services)} />
+          </div>
+        </div>
+      </>
+    );
+  }
   if (tab === "randevular" && id) {
     let a;
     try {
@@ -150,6 +227,14 @@ export default async function Admin({
           <aside className="card">
             <h3>Randevu işlemleri</h3>
             <AppointmentActions appointment={serialize(a)} admin />
+            {isDemo() && ["CONFIRMED", "IN_PROGRESS"].includes(a.status) && (
+              <div style={{ marginTop: 20 }}>
+                <p className="small muted">
+                  Yalnızca test için randevu saatini şimdiye alır. Gerçek görüşme yapılmaz.
+                </p>
+                <PrepareReviewSession appointmentId={a.id} />
+              </div>
+            )}
           </aside>
         </div>
       </>
@@ -763,7 +848,7 @@ export default async function Admin({
       <>
         <Title
           title="Geliştirme posta kutusu"
-          description="Yalnızca yerel yöneticiye açık. Gerçek e-posta teslimatı yapılmaz."
+          description="Yalnızca demo yöneticisine açık. Gerçek e-posta teslimatı yapılmaz."
         />
         <RunJobsButton />
         {emails.map((e) => (

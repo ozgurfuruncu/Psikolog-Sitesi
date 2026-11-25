@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useId } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Trash2, Plus, Info } from "lucide-react";
 import { Button, Modal, api, useToast, Badge, EmptyState } from "./ui";
@@ -270,7 +270,8 @@ function minuteString(n: number) {
   return `${String(Math.floor(n / 60)).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`;
 }
 export function EditorField({ field: f, value }: { field: Field; value: unknown }) {
-  const id = `editor-${f.key}`;
+  const uniqueId = useId();
+  const id = `editor-${f.key}-${uniqueId}`;
   if (f.type === "checkbox")
     return (
       <label className="checkbox-field full-span">

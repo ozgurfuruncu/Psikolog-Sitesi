@@ -45,6 +45,10 @@ export async function deliverEmails() {
         host: process.env.SMTP_HOST,
         port: Number(process.env.SMTP_PORT || 587),
         secure: process.env.SMTP_SECURE === "true",
+        requireTLS: process.env.NODE_ENV === "production",
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 20000,
         ...(process.env.SMTP_USER
           ? { auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD } }
           : {}),

@@ -1605,6 +1605,7 @@ select.input {
   color: var(--sky-ink);
 }
 .table-wrap {
+  position: relative;
   overflow: auto;
   width: 100%;
 }

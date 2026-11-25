@@ -18,8 +18,10 @@ import {
   supportSchema,
   serviceSchema,
   settingsSchema,
+  profileSchema,
+  websiteSchema,
 } from "@/lib/validation";
-import { requireDemo } from "@/lib/env";
+import { requireDemo, isIsolatedTest, isReview } from "@/lib/env";
 import {
   startCheckout,
   verifyMockWebhook,
@@ -31,6 +33,7 @@ import { mockVideoProvider, verifyVideoAccess } from "@/lib/providers/video";
 import { storeFile, loadFile, checkFileSignature, signedFileUrl } from "@/lib/files";
 import { runJobs } from "@/lib/jobs";
 import { randomUUID } from "node:crypto";
+import { setupAdministrator } from "@/lib/setup";
 
 export const dynamic = "force-dynamic";
 type Context = { params: Promise<{ segments: string[] }> };
@@ -57,14 +60,17 @@ export async function GET(request: Request, context: Context) {
       const user = await currentUser();
       if (user?.role !== "ADMIN") {
         if (!checkFileSignature(s[1], url)) fail("Dosya erişim süresi doldu.", 403);
-        const [certificate, post, profile] = await Promise.all([
+        const [certificate, post, profile, branding] = await Promise.all([
           db.certificate.findFirst({
             where: { fileId: s[1], published: true, redactionConfirmed: true },
           }),
           db.blogPost.findFirst({ where: { imageFileId: s[1], published: true, reviewed: true } }),
           db.psychologistProfile.findFirst({ where: { photoFileId: s[1] } }),
+          db.siteSettings.findFirst({
+            where: { OR: [{ logoFileId: s[1] }, { faviconFileId: s[1] }] },
+          }),
         ]);
-        if (!certificate && !post && !profile) fail("Dosya bulunamadı.", 404);
+        if (!certificate && !post && !profile && !branding) fail("Dosya bulunamadı.", 404);
       }
       const { file, bytes } = await loadFile(s[1]);
       return new Response(bytes, {
@@ -100,10 +106,10 @@ export async function GET(request: Request, context: Context) {
             [
               "BEGIN:VCALENDAR",
               "VERSION:2.0",
-              "PRODID:-//Durak//Appointments//TR",
+              "PRODID:-//Appointment Platform//Appointments//TR",
               "CALSCALE:GREGORIAN",
               "BEGIN:VEVENT",
-              `UID:${a.id}@durak.local`,
+              `UID:${a.id}@appointments`,
               `DTSTAMP:${stamp(new Date())}`,
               `DTSTART:${stamp(a.startsAt)}`,
               `DTEND:${stamp(a.endsAt)}`,
@@ -235,7 +241,19 @@ export async function POST(request: Request, context: Context) {
     assertOrigin(request);
     if (Number(request.headers.get("content-length") || 0) > 6 * 1024 * 1024)
       fail("İstek çok büyük.", 413);
+    if (s[0] === "setup") {
+      await rateLimit("initial-admin-setup", 5, 3600_000);
+      await setupAdministrator(await request.json());
+      return json({ ok: true }, 201);
+    }
     if (s[0] === "support") {
+      if (
+        process.env.NODE_ENV === "production" &&
+        !isIsolatedTest() &&
+        !isReview() &&
+        process.env.PRODUCTION_LEGAL_APPROVED !== "true"
+      )
+        fail("İletişim formu henüz hizmete açılmadı.", 503);
       await rateLimit("support", 15, 3600_000);
       const data = supportSchema.parse(await request.json());
       await db.supportRequest.create({ data });
@@ -255,6 +273,52 @@ export async function POST(request: Request, context: Context) {
       return json({ id: saved.id, url: signedFileUrl(saved.id) }, 201);
     }
     const body = await request.json();
+    if (s[0] === "admin" && s[1] === "review-session") {
+      requireDemo();
+      const { appointmentId } = z.object({ appointmentId: z.string().min(1).max(100) }).parse(body);
+      await db.$transaction(async (tx) => {
+        await bookingLock(tx);
+        const a = await tx.appointment.findUnique({
+          where: { id: appointmentId },
+          include: { client: true, payment: true },
+        });
+        if (
+          !a ||
+          !a.client.email.endsWith("@example.test") ||
+          !["CONFIRMED", "IN_PROGRESS"].includes(a.status) ||
+          (a.payment?.provider !== "mock" && a.payment?.status !== "NOT_REQUIRED")
+        )
+          fail("Yalnızca onaylı kurgusal demo randevusu hazırlanabilir.", 409);
+        const startsAt = new Date(Date.now() - 2 * 60_000);
+        const endsAt = new Date(startsAt.getTime() + a.durationMinutes * 60_000);
+        const settings = await tx.siteSettings.findUniqueOrThrow({ where: { id: "primary" } });
+        const reservedUntil = new Date(endsAt.getTime() + settings.bufferMinutes * 60_000);
+        if (
+          await tx.appointment.count({
+            where: {
+              id: { not: a.id },
+              status: { in: activeStatuses },
+              startsAt: { lt: reservedUntil },
+              reservedUntil: { gt: startsAt },
+            },
+          })
+        )
+          fail("Bu aralıkta başka bir demo randevusu var. Önce mevcut demoyu tamamlayın.", 409);
+        await tx.appointment.update({
+          where: { id: a.id },
+          data: { startsAt, endsAt, reservedUntil, status: "CONFIRMED" },
+        });
+        await tx.videoSession.upsert({
+          where: { appointmentId: a.id },
+          create: { appointmentId: a.id, roomId: randomUUID(), provider: "mock" },
+          update: { endedAt: null, roomId: randomUUID() },
+        });
+        await tx.auditLog.create({
+          data: { actorId: user.id, action: "REVIEW_SESSION_PREPARED", resourceId: a.id },
+        });
+      });
+      return json({ ok: true });
+    }
     if (s[0] === "appointments") {
       if (!s[1]) {
         const data = bookingSchema.parse(body);
@@ -419,6 +483,31 @@ export async function POST(request: Request, context: Context) {
         });
         return json({ ok: true });
       }
+      if (s[1] === "branding") {
+        const { field, fileId } = z
+          .object({
+            field: z.enum(["logoFileId", "faviconFileId"]),
+            fileId: z.string().nullable(),
+          })
+          .parse(body);
+        if (fileId) {
+          const file = await db.privateFile.findUnique({ where: { id: fileId } });
+          if (!file || !["image/png", "image/jpeg"].includes(file.mimeType))
+            fail("PNG veya JPEG görseli yükleyin.");
+        }
+        await db.siteSettings.upsert({
+          where: { id: "primary" },
+          create: { [field]: fileId },
+          update: { [field]: fileId },
+        });
+        return json({ ok: true });
+      }
+      if (s[1] === "website") {
+        const data = websiteSchema.parse(body);
+        return json(
+          await db.siteSettings.upsert({ where: { id: "primary" }, create: data, update: data }),
+        );
+      }
       if (s[1] === "services") {
         const data = serviceSchema.parse(body);
         return json(
@@ -451,26 +540,7 @@ export async function POST(request: Request, context: Context) {
         );
       }
       if (s[1] === "profile") {
-        const data = z
-          .object({
-            name: z.string().min(2).max(100),
-            title: z.string().max(150),
-            biography: z.string().max(10000),
-            experience: z.string().max(3000),
-            approaches: z.string().max(3000),
-            areas: z.string().max(3000),
-            languages: z.string().max(300),
-            contactEmail: z.union([z.email(), z.literal("")]),
-            contactPhone: z.string().max(30),
-            photoFileId: z.string().nullable().optional(),
-            isPlaceholder: z.boolean(),
-          })
-          .parse(body);
-        if (
-          data.photoFileId &&
-          !(await db.privateFile.findUnique({ where: { id: data.photoFileId } }))
-        )
-          fail("Fotoğraf bulunamadı.");
+        const data = profileSchema.parse(body);
         return json(
           await db.psychologistProfile.upsert({
             where: { id: "primary" },
@@ -547,6 +617,8 @@ export async function POST(request: Request, context: Context) {
           .object({
             institution: z.string().min(2).max(200),
             qualification: z.string().min(2).max(200),
+            department: z.string().max(200).default(""),
+            degree: z.string().max(100).default(""),
             year: z.number().int().min(1950).max(2100).nullable(),
             published: z.boolean(),
             order: z.number().int().min(0),

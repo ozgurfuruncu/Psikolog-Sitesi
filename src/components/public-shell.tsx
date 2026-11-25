@@ -11,24 +11,39 @@ const links = [
   ["/blog", "Yazılar"],
   ["/iletisim", "İletişim"],
 ];
-export function PublicHeader({ siteName = "Durak" }: { siteName?: string }) {
+export type PublicSite = {
+  siteName: string;
+  logoUrl?: string;
+  showProfile: boolean;
+  showEducation: boolean;
+  showCertificates: boolean;
+  showBlog: boolean;
+  demonstration: boolean;
+};
+export function PublicHeader({ site }: { site: PublicSite }) {
+  const { siteName, logoUrl } = site;
   const [open, setOpen] = useState(false),
     path = usePathname();
   return (
     <header className="public-header">
       <div className="container header-inner">
-        <Brand name={siteName} />
+        <Brand name={siteName} logoUrl={logoUrl} />
         <nav aria-label="Ana menü" className={open ? "public-nav open" : "public-nav"}>
-          {links.map(([href, label]) => (
-            <Link
-              key={href}
-              href={href}
-              className={path === href ? "active" : ""}
-              onClick={() => setOpen(false)}
-            >
-              {label}
-            </Link>
-          ))}
+          {links
+            .filter(
+              ([href]) =>
+                (href !== "/hakkinda" || site.showProfile) && (href !== "/blog" || site.showBlog),
+            )
+            .map(([href, label]) => (
+              <Link
+                key={href}
+                href={href}
+                className={path === href ? "active" : ""}
+                onClick={() => setOpen(false)}
+              >
+                {label}
+              </Link>
+            ))}
           <Link className="mobile-login" href="/giris" onClick={() => setOpen(false)}>
             Danışan girişi
           </Link>
@@ -54,13 +69,14 @@ export function PublicHeader({ siteName = "Durak" }: { siteName?: string }) {
     </header>
   );
 }
-export function PublicFooter({ siteName = "Durak" }: { siteName?: string }) {
+export function PublicFooter({ site }: { site: PublicSite }) {
+  const { siteName, logoUrl } = site;
   return (
     <footer className="public-footer">
       <div className="container">
         <div className="footer-top">
           <div>
-            <Brand name={siteName} />
+            <Brand name={siteName} logoUrl={logoUrl} />
             <p>
               Kendinizi dinlemek için
               <br />
@@ -72,9 +88,9 @@ export function PublicFooter({ siteName = "Durak" }: { siteName?: string }) {
           </div>
           <div>
             <h3>Keşfedin</h3>
-            <Link href="/hakkinda">Uzman hakkında</Link>
-            <Link href="/egitim">Eğitim ve yetkinlikler</Link>
-            <Link href="/sertifikalar">Sertifikalar</Link>
+            {site.showProfile && <Link href="/hakkinda">Uzman hakkında</Link>}
+            {site.showEducation && <Link href="/egitim">Eğitim ve yetkinlikler</Link>}
+            {site.showCertificates && <Link href="/sertifikalar">Sertifikalar</Link>}
             <Link href="/hizmetler">Çalışma alanları</Link>
           </div>
           <div>
@@ -90,15 +106,19 @@ export function PublicFooter({ siteName = "Durak" }: { siteName?: string }) {
               Bu platform acil destek hizmeti sunmaz. Acil bir tehlike durumunda{" "}
               <strong>112 Acil Çağrı Merkezi</strong> ile iletişime geçin.
             </p>
-            <p className="small">
-              Şu anda geliştirme ortamındasınız.
-              <br />
-              Gerçek danışan verisi girmeyin.
-            </p>
+            {site.demonstration && (
+              <p className="small">
+                Bu site henüz gerçek hizmete açılmamıştır.
+                <br />
+                Gerçek danışan verisi girmeyin.
+              </p>
+            )}
           </div>
         </div>
         <div className="footer-bottom">
-          <span>© {new Date().getFullYear()} Durak. Tüm hakları saklıdır.</span>
+          <span>
+            © {new Date().getFullYear()} {siteName}. Tüm hakları saklıdır.
+          </span>
           <div>
             <Link href="/gizlilik">Gizlilik</Link>
             <Link href="/kvkk">KVKK</Link>

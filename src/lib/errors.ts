@@ -1,4 +1,5 @@
 import { ZodError } from "zod";
+import { reportServerError } from "./monitoring";
 export class AppError extends Error {
   constructor(
     message: string,
@@ -10,7 +11,7 @@ export class AppError extends Error {
 export function fail(message: string, status = 400): never {
   throw new AppError(message, status);
 }
-export function apiError(error: unknown) {
+export async function apiError(error: unknown) {
   if (error instanceof SyntaxError)
     return Response.json({ error: "İstek içeriği geçerli değil." }, { status: 400 });
   if (error instanceof AppError)
@@ -28,15 +29,9 @@ export function apiError(error: unknown) {
       },
       { status: 409 },
     );
-  console.error("Request failed", {
-    type: error instanceof Error ? error.constructor.name : "Unknown",
-    location:
-      error instanceof TypeError
-        ? error.stack?.split("\n").find((line) => line.trim().startsWith("at "))
-        : undefined,
-  });
+  const reference = await reportServerError(error, "api");
   return Response.json(
-    { error: "İşlem tamamlanamadı. Lütfen daha sonra tekrar deneyin." },
+    { error: "İşlem tamamlanamadı. Lütfen daha sonra tekrar deneyin.", reference },
     { status: 500 },
   );
 }

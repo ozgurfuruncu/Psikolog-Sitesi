@@ -1,10 +1,16 @@
 import Image from "next/image";
 import { Brand } from "@/components/brand";
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+import { getSite } from "@/lib/site";
+import { signedFileUrl } from "@/lib/files";
+export default async function AuthLayout({ children }: { children: React.ReactNode }) {
+  const site = await getSite();
   return (
     <div className="auth-layout">
       <aside className="auth-story">
-        <Brand />
+        <Brand
+          name={site.siteName}
+          logoUrl={site.logoFileId ? signedFileUrl(site.logoFileId) : undefined}
+        />
         <div>
           <h2>
             Kendinize dönmek

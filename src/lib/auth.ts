@@ -3,17 +3,23 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError } from "better-auth/api";
 import { db } from "./db";
 import { queueEmail } from "./mail";
-import { appUrl } from "./env";
+import { appUrl, developmentOrigins, trustedAppOrigins } from "./env";
 
 if (!process.env.BETTER_AUTH_SECRET || process.env.BETTER_AUTH_SECRET.length < 32)
   throw new Error("BETTER_AUTH_SECRET must contain at least 32 random characters.");
 
 export const auth = betterAuth({
   logger: { disabled: true },
-  appName: "Durak",
-  baseURL: process.env.BETTER_AUTH_URL || appUrl,
+  appName: "Site Adı",
+  baseURL: developmentOrigins.length
+    ? {
+        allowedHosts: trustedAppOrigins.map((origin) => new URL(origin).host),
+        fallback: appUrl,
+        protocol: "http",
+      }
+    : process.env.BETTER_AUTH_URL || appUrl,
   secret: process.env.BETTER_AUTH_SECRET,
-  trustedOrigins: [appUrl],
+  trustedOrigins: trustedAppOrigins,
   database: prismaAdapter(db, { provider: "postgresql", transaction: true }),
   emailAndPassword: {
     enabled: true,

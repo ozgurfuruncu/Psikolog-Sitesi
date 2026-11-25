@@ -2,6 +2,31 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, api, useToast } from "./ui";
+export function PrepareReviewSession({ appointmentId }: { appointmentId: string }) {
+  const [busy, setBusy] = useState(false),
+    toast = useToast(),
+    router = useRouter();
+  return (
+    <Button
+      variant="outline"
+      loading={busy}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          await api("/api/admin/review-session", { appointmentId });
+          toast("Kurgusal görüşmenin saati şimdiye alındı. Demo odası hazır.");
+          router.refresh();
+        } catch (error) {
+          toast((error as Error).message, true);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      Demo odasını şimdi hazırla
+    </Button>
+  );
+}
 export function RunJobsButton() {
   const [busy, setBusy] = useState(false),
     toast = useToast(),
@@ -207,6 +232,71 @@ export function ProfilePhotoUpload() {
       <Button type="submit" loading={busy}>
         Fotoğrafı yükle
       </Button>
+    </form>
+  );
+}
+export function BrandingUpload({
+  field,
+  title,
+}: {
+  field: "logoFileId" | "faviconFileId";
+  title: string;
+}) {
+  const [busy, setBusy] = useState(false),
+    toast = useToast(),
+    router = useRouter();
+  return (
+    <form
+      method="post"
+      className="card"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        setBusy(true);
+        try {
+          const response = await fetch("/api/files", {
+            method: "POST",
+            body: new FormData(event.currentTarget),
+          });
+          const file = await response.json();
+          if (!response.ok) throw new Error(file.error);
+          await api("/api/admin/branding", { field, fileId: file.id });
+          toast(`${title} kaydedildi.`);
+          router.refresh();
+        } catch (error) {
+          toast((error as Error).message, true);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <h3>{title}</h3>
+      <div className="field">
+        <label htmlFor={field}>PNG veya JPEG (en çok 5 MB)</label>
+        <input id={field} type="file" name="file" accept="image/png,image/jpeg" required />
+      </div>
+      <div className="button-row">
+        <Button type="submit" loading={busy}>
+          Görseli yükle
+        </Button>
+        <Button
+          variant="outline"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              await api("/api/admin/branding", { field, fileId: null });
+              toast("Görsel kaldırıldı.");
+              router.refresh();
+            } catch (error) {
+              toast((error as Error).message, true);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          Görseli kaldır
+        </Button>
+      </div>
     </form>
   );
 }

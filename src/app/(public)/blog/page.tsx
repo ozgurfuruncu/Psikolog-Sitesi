@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { formatDate } from "@/lib/i18n";
 import { signedFileUrl } from "@/lib/files";
 import { EmptyState } from "@/components/ui";
+import { getSite } from "@/lib/site";
+import { notFound } from "next/navigation";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Yazılar" };
 export default async function Blog({
@@ -13,6 +15,7 @@ export default async function Blog({
   searchParams: Promise<{ q?: string; category?: string }>;
 }) {
   const { q, category } = await searchParams;
+  if (!(await getSite()).showBlog) notFound();
   const [posts, categories] = await Promise.all([
     db.blogPost.findMany({
       where: {

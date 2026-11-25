@@ -3,7 +3,7 @@ import { auth } from "./auth";
 import { fail } from "./errors";
 import { db } from "./db";
 import { redirect } from "next/navigation";
-import { appUrl } from "./env";
+import { trustedAppOrigins } from "./env";
 
 export async function currentUser() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -34,7 +34,7 @@ export async function pageUser(admin = false) {
   return user;
 }
 export function assertOrigin(request: Request) {
-  if (request.headers.get("origin") !== new URL(appUrl).origin)
+  if (!trustedAppOrigins.includes(request.headers.get("origin") || ""))
     fail("İstek kaynağı doğrulanamadı.", 403);
   if (
     !request.headers.get("content-type")?.includes("application/json") &&

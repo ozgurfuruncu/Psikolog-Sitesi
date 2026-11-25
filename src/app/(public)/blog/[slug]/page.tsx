@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { formatDate } from "@/lib/i18n";
 import { signedFileUrl } from "@/lib/files";
+import { getSite } from "@/lib/site";
 export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -11,6 +12,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return { title: p?.seoTitle || p?.title || "Yazı", description: p?.seoDescription || p?.excerpt };
 }
 export default async function Article({ params }: { params: Promise<{ slug: string }> }) {
+  if (!(await getSite()).showBlog) notFound();
   const { slug } = await params;
   const p = await db.blogPost.findFirst({
     where: { slug, published: true, reviewed: true },

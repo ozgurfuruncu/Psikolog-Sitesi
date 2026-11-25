@@ -35,6 +35,7 @@ const clientLinks = [
   { href: "/panel/ayarlar", label: "Hesap ayarlarım", Icon: Settings },
 ];
 const adminLinks = [
+  { href: "/yonetim/site-yonetimi", label: "Site Yönetimi", Icon: Settings },
   { href: "/yonetim", label: "Genel bakış", Icon: LayoutDashboard },
   { href: "/yonetim/takvim", label: "Takvim", Icon: CalendarDays },
   { href: "/yonetim/randevular", label: "Randevu yönetimi", Icon: Clock3 },
@@ -54,7 +55,7 @@ export function AppShell({
   admin = false,
   demo = false,
   unread = 0,
-  siteName = "Durak",
+  siteName = "Site Adı",
 }: {
   children: React.ReactNode;
   user: { name: string; role: string };
@@ -92,6 +93,7 @@ export function AppShell({
             .filter((x) => demo || x.href !== "/yonetim/posta")
             .map(({ href, label, Icon }) => (
               <Link
+                prefetch={false}
                 key={href}
                 href={href}
                 className={active?.href === href ? "active" : ""}
@@ -155,6 +157,7 @@ export function AppShell({
               })}
             </span>
             <Link
+              prefetch={false}
               className="notification-bell"
               href={admin ? "/yonetim/randevular" : "/panel/bildirimler"}
               aria-label={`${unread} okunmamış bildirim`}
@@ -162,6 +165,7 @@ export function AppShell({
               <Bell size={19} strokeWidth={1.5} />
             </Link>
             <Link
+              prefetch={false}
               href={admin ? "/yonetim/profil" : "/panel/ayarlar"}
               className="avatar"
               aria-label="Hesap ayarları"

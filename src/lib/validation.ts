@@ -63,3 +63,37 @@ export const settingsSchema = z.object({
   paymentHoldHours: z.number().int().min(1).max(72),
   cancellationText: z.string().max(3000),
 });
+const httpsOrEmpty = z.union([
+  z.literal(""),
+  z.url().refine((url) => url.startsWith("https://"), "Bağlantı HTTPS olmalı."),
+]);
+export const profileSchema = z
+  .object({
+    firstName: z.string().trim().min(1).max(50),
+    lastName: z.string().trim().min(1).max(50),
+    title: z.string().trim().max(150),
+    biography: z.string().max(10000),
+    experience: z.string().max(3000),
+    approaches: z.string().max(3000),
+    areas: z.string().max(3000),
+    languages: z.string().max(300),
+    contactEmail: z.union([z.email(), z.literal("")]),
+    contactPhone: z.string().max(30),
+    address: z.string().max(1000).default(""),
+    instagramUrl: httpsOrEmpty.default(""),
+    linkedinUrl: httpsOrEmpty.default(""),
+    otherSocialUrl: httpsOrEmpty.default(""),
+    isPlaceholder: z.boolean(),
+  })
+  .transform((data) => ({ ...data, name: `${data.firstName} ${data.lastName}` }));
+export const websiteSchema = z.object({
+  siteName: z.string().trim().min(2).max(50),
+  browserTitle: z.string().trim().min(2).max(100),
+  description: z.string().trim().min(2).max(500),
+  homeHeadline: z.string().trim().min(2).max(200),
+  homeDescription: z.string().trim().min(2).max(2000),
+  showProfile: z.boolean(),
+  showEducation: z.boolean(),
+  showCertificates: z.boolean(),
+  showBlog: z.boolean(),
+});

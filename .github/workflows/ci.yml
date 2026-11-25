@@ -1,0 +1,57 @@
+name: Application checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test-only-ci-postgres
+          POSTGRES_DB: durak
+        ports: [5432:5432]
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:test-only-ci-postgres@127.0.0.1:5432/durak
+      APP_URL: http://localhost:3000
+      BETTER_AUTH_URL: http://localhost:3000
+      BETTER_AUTH_SECRET: isolated-ci-only-auth-secret-at-least-32-characters
+      MOCK_WEBHOOK_SECRET: isolated-ci-only-webhook-secret-32-characters
+      JOB_SECRET: isolated-ci-only-job-secret-32-characters
+      DEMO_MODE: "true"
+      PAYMENT_PROVIDER: mock
+      VIDEO_PROVIDER: mock
+      EMAIL_PROVIDER: preview
+      PRIVATE_STORAGE_PATH: .local/ci-private
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run db:migrate
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - run: npm run test:e2e
+      - run: npm run build
+      - run: npm audit --audit-level=high
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: verification-report
+          path: |
+            test-results/e2e-results.json
+            docs/screenshots/
+          retention-days: 7

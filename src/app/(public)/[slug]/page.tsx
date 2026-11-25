@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { money } from "@/lib/i18n";
 import { EmptyState } from "@/components/ui";
+import { getSite, getProfile } from "@/lib/site";
 export const dynamic = "force-dynamic";
 const names: Record<string, string> = {
   hakkinda: "Uzman hakkında",
@@ -32,10 +33,18 @@ const names: Record<string, string> = {
 };
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  const site = await getSite();
+  if (
+    (slug === "hakkinda" && !site.showProfile) ||
+    (slug === "egitim" && !site.showEducation) ||
+    (slug === "sertifikalar" && !site.showCertificates)
+  )
+    notFound();
   return { title: legalDocuments[slug]?.title || names[slug] || "Sayfa" };
 }
 export default async function PublicPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  const site = await getSite();
   const title = legalDocuments[slug]?.title || names[slug];
   if (!title) notFound();
   let content: React.ReactNode;
@@ -63,7 +72,7 @@ export default async function PublicPage({ params }: { params: Promise<{ slug: s
       </div>
     );
   } else if (slug === "hakkinda") {
-    const p = await db.psychologistProfile.findUnique({ where: { id: "primary" } });
+    const p = await getProfile();
     content = (
       <>
         <div className="profile-block">
@@ -79,7 +88,7 @@ export default async function PublicPage({ params }: { params: Promise<{ slug: s
             ) : (
               <>
                 <UserRound size={90} strokeWidth={0.65} />
-                <span>Uzman fotoğrafı eklenecek</span>
+                <span>Profil Fotoğrafı</span>
               </>
             )}
           </div>
@@ -89,15 +98,19 @@ export default async function PublicPage({ params }: { params: Promise<{ slug: s
             <p>{p?.title}</p>
             <p style={{ whiteSpace: "pre-line" }}>{p?.biography}</p>
             <p>
-              <strong>Diller:</strong> {p?.languages}
+              <strong>Diller:</strong> {p?.languages || "Konuşulan Diller"}
             </p>
             <div className="button-row">
-              <Link href="/egitim" className="btn btn-outline">
-                Eğitim ve yetkinlikler
-              </Link>
-              <Link href="/sertifikalar" className="text-link">
-                Sertifikalar
-              </Link>
+              {site.showEducation && (
+                <Link href="/egitim" className="btn btn-outline">
+                  Eğitim ve yetkinlikler
+                </Link>
+              )}
+              {site.showCertificates && (
+                <Link href="/sertifikalar" className="text-link">
+                  Sertifikalar
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -110,7 +123,7 @@ export default async function PublicPage({ params }: { params: Promise<{ slug: s
             <section className="card" key={label}>
               <h3>{label}</h3>
               <p className="small">
-                {value || "Uzman tarafından kendi mesleki bilgileriyle doldurulacaktır."}
+                {value || (label === "Mesleki deneyim" ? "Mesleki Deneyim" : "Uzmanlık Alanı")}
               </p>
             </section>
           ))}
@@ -134,6 +147,8 @@ export default async function PublicPage({ params }: { params: Promise<{ slug: s
               <article className="card" key={e.id}>
                 <GraduationCap size={30} color="var(--primary)" />
                 <h3 style={{ marginTop: 20 }}>{e.qualification}</h3>
+                {e.department && <p>{e.department}</p>}
+                {e.degree && <p>{e.degree}</p>}
                 <p>
                   {e.institution}
                   {e.year && ` · ${e.year}`}
@@ -150,9 +165,11 @@ export default async function PublicPage({ params }: { params: Promise<{ slug: s
             />
           </div>
         )}
-        <Link href="/sertifikalar" className="btn btn-outline" style={{ marginTop: 25 }}>
-          Sertifikaları inceleyin
-        </Link>
+        {site.showCertificates && (
+          <Link href="/sertifikalar" className="btn btn-outline" style={{ marginTop: 25 }}>
+            Sertifikaları inceleyin
+          </Link>
+        )}
       </>
     );
   } else if (slug === "sertifikalar") {
@@ -334,7 +351,25 @@ export default async function PublicPage({ params }: { params: Promise<{ slug: s
               <a href={`mailto:${p.contactEmail}`}>{p.contactEmail}</a>
             </p>
           )}
-          {p?.contactPhone && <p>{p.contactPhone}</p>}
+          {p?.contactPhone && (
+            <p>
+              <a href={`tel:${p.contactPhone.replace(/[^+\d]/g, "")}`}>{p.contactPhone}</a>
+            </p>
+          )}
+          {p?.address && <p style={{ whiteSpace: "pre-line" }}>{p.address}</p>}
+          {[
+            ["Instagram", p?.instagramUrl],
+            ["LinkedIn", p?.linkedinUrl],
+            ["Sosyal medya", p?.otherSocialUrl],
+          ].map(([label, url]) =>
+            url ? (
+              <p key={label}>
+                <a href={url} target="_blank" rel="noopener noreferrer">
+                  {label}
+                </a>
+              </p>
+            ) : null,
+          )}
         </section>
         <section className="card">
           <ContactForm />
@@ -350,7 +385,7 @@ export default async function PublicPage({ params }: { params: Promise<{ slug: s
         <span>{title}</span>
       </div>
       <div className="page-intro">
-        <p className="eyebrow">DURAK · KENDİNE BİR ALAN</p>
+        <p className="eyebrow">{site.siteName} · KENDİNE BİR ALAN</p>
         <h1>{title}</h1>
       </div>
       {content}

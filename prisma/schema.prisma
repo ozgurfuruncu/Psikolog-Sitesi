@@ -116,21 +116,27 @@ model ClientProfile {
 }
 
 model PsychologistProfile {
-  id            String        @id @default("primary")
-  name          String        @default("Uzman bilgileri hazırlanıyor")
-  title         String        @default("Profesyonel unvan eklenecek")
-  biography     String        @default("Bu alan, uzmanın kendi bilgileri ve mesleki yetkileri doğrulandıktan sonra güncellenecektir.")
-  experience    String        @default("")
-  approaches    String        @default("")
-  areas         String        @default("")
-  languages     String        @default("Türkçe")
-  contactEmail  String        @default("")
-  contactPhone  String        @default("")
-  photoFileId   String?
-  isPlaceholder Boolean       @default(true)
-  updatedAt     DateTime      @updatedAt
-  education     Education[]
-  certificates  Certificate[]
+  id             String        @id @default("primary")
+  name           String        @default("İsim Soyisim")
+  firstName      String        @default("İsim")
+  lastName       String        @default("Soyisim")
+  title          String        @default("Mesleki Unvan")
+  biography      String        @default("Hakkımda")
+  experience     String        @default("")
+  approaches     String        @default("")
+  areas          String        @default("")
+  languages      String        @default("")
+  contactEmail   String        @default("")
+  contactPhone   String        @default("")
+  address        String        @default("")
+  instagramUrl   String        @default("")
+  linkedinUrl    String        @default("")
+  otherSocialUrl String        @default("")
+  photoFileId    String?
+  isPlaceholder  Boolean       @default(true)
+  updatedAt      DateTime      @updatedAt
+  education      Education[]
+  certificates   Certificate[]
 }
 
 model Education {
@@ -138,6 +144,8 @@ model Education {
   profileId     String              @default("primary")
   institution   String
   qualification String
+  department    String              @default("")
+  degree        String              @default("")
   year          Int?
   published     Boolean             @default(false)
   order         Int                 @default(0)
@@ -169,6 +177,13 @@ model PrivateFile {
   size       Int
   purpose    String
   createdAt  DateTime @default(now())
+  content    PrivateFileContent?
+}
+
+model PrivateFileContent {
+  fileId String @id
+  bytes  Bytes
+  file   PrivateFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
 }
 
 model Service {
@@ -466,7 +481,17 @@ model AuditLog {
 
 model SiteSettings {
   id                   String   @id @default("primary")
-  siteName             String   @default("Durak")
+  siteName             String   @default("Site Adı")
+  browserTitle         String   @default("Site Adı")
+  description          String   @default("Web sitesi açıklaması")
+  homeHeadline         String   @default("Kendinize bir alan açın.")
+  homeDescription      String   @default("Görüşme sürecini inceleyin ve size uygun zamanı seçin.")
+  logoFileId           String?
+  faviconFileId        String?
+  showProfile          Boolean  @default(true)
+  showEducation        Boolean  @default(true)
+  showCertificates     Boolean  @default(true)
+  showBlog             Boolean  @default(true)
   timezone             String   @default("Europe/Istanbul")
   bookingNoticeHours   Int      @default(4)
   cancellationHours    Int      @default(24)

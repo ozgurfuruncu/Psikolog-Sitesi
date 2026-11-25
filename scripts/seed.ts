@@ -3,7 +3,8 @@ import { db } from "../src/lib/db";
 import { hashPassword } from "better-auth/crypto";
 import { randomUUID } from "node:crypto";
 import { istanbulDate, localDate, addDays } from "../src/lib/i18n";
-if (process.env.NODE_ENV === "production" || process.env.DEMO_MODE !== "true")
+import { isReview } from "../src/lib/env";
+if ((process.env.NODE_ENV === "production" && !isReview()) || process.env.DEMO_MODE !== "true")
   throw new Error("Seed is restricted to development with DEMO_MODE=true.");
 for (const key of ["DEMO_CLIENT_PASSWORD", "DEMO_ADMIN_PASSWORD"])
   if (!process.env[key] || process.env[key]!.length < 12)
@@ -11,7 +12,7 @@ for (const key of ["DEMO_CLIENT_PASSWORD", "DEMO_ADMIN_PASSWORD"])
 for (const data of [
   {
     id: "demo-client",
-    name: "Deniz (demo danışan)",
+    name: "İsim Soyisim (demo danışan)",
     email: "danisan@example.test",
     role: "CLIENT" as const,
     password: process.env.DEMO_CLIENT_PASSWORD!,
@@ -61,8 +62,7 @@ await db.psychologistProfile.upsert({
   where: { id: "primary" },
   create: {
     id: "primary",
-    biography:
-      "Bu profil, uzman tarafından kendi mesleki bilgileriyle doldurulmayı beklemektedir. Eğitim, deneyim, unvan ve çalışma alanları gerçek belgeler üzerinden eklenecektir. Burada gerçek bir uzmanın kimliği veya yetkinliği temsil edilmez.",
+    biography: "Hakkımda",
   },
   update: {},
 });
@@ -187,8 +187,8 @@ await db.certificate.upsert({
   where: { id: "placeholder-certificate" },
   create: {
     id: "placeholder-certificate",
-    title: "Örnek belge alanı",
-    institution: "Kurum bilgisi eklenecek",
+    title: "Sertifika Adı",
+    institution: "Kurum Adı",
     description:
       "Bu bir yetkinlik belgesi değildir. Galerinin geliştirme amacıyla gösterilen yer tutucusudur.",
     published: true,
@@ -279,7 +279,7 @@ for (const [kind, title, body] of [
   ],
   [
     "WELCOME",
-    "Durak’a hoş geldiniz",
+    "Hoş geldiniz",
     "Bu hesap ve randevular, geliştirme amacıyla hazırlanmış kurgusal verilerdir.",
   ],
 ])

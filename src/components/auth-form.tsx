@@ -66,7 +66,16 @@ export function AuthForm({
           }),
         });
         if (!response.ok) {
-          await response.json();
+          if (response.status === 503)
+            throw new Error(
+              "Hesap kaydı henüz hizmete açılmadı. Lütfen daha sonra tekrar deneyin.",
+            );
+          const failure = await response.json();
+          if (
+            failure.message ===
+            "Demo için @example.test uzantılı kurgusal bir e-posta adresi kullanın."
+          )
+            throw new Error(failure.message);
           throw new Error("Hesap oluşturulamadı. Bilgileri kontrol edip tekrar deneyin.");
         }
         setSuccess(true);
@@ -97,7 +106,11 @@ export function AuthForm({
         setSuccess(true);
       }
     } catch (err) {
-      setError((err as Error).message);
+      setError(
+        err instanceof TypeError
+          ? "Sunucuya ulaşılamadı. Bağlantınızı kontrol edip tekrar deneyin."
+          : (err as Error).message,
+      );
     } finally {
       setLoading(false);
     }
@@ -129,7 +142,7 @@ export function AuthForm({
           {demo && mode !== "reset" && (
             <p className="notice">
               <Info size={18} />
-              Yerel geliştirmede e-postalar gönderilmez. Yetkili demo yönetici, geliştirme posta
+              Demo ortamında e-postalar gönderilmez. Yetkili demo yönetici, geliştirme posta
               kutusundan bağlantıyı açabilir.
             </p>
           )}
@@ -176,7 +189,11 @@ export function AuthForm({
             <div className="field">
               <div className="password-label">
                 <label htmlFor="password">{mode === "reset" ? "Yeni şifreniz" : "Şifreniz"}</label>
-                {mode === "login" && <Link href="/sifremi-unuttum">Şifremi unuttum</Link>}
+                {mode === "login" && (
+                  <Link prefetch={false} href="/sifremi-unuttum">
+                    Şifremi unuttum
+                  </Link>
+                )}
               </div>
               <input
                 id="password"
@@ -222,7 +239,7 @@ export function AuthForm({
           {mode === "login" && (
             <p className="auth-bottom">
               Henüz hesabınız yok mu?{" "}
-              <Link className="text-link" href="/kayit">
+              <Link prefetch={false} className="text-link" href="/kayit">
                 Hesap oluşturun
               </Link>
             </p>
@@ -252,10 +269,7 @@ export function AuthForm({
             <br />
             Yönetici: <code>uzman@example.test</code>
           </p>
-          <p>
-            Hesaba özel şifreler yerel <code>.env</code> dosyasındadır. Gerçek danışan verisi
-            girmeyin.
-          </p>
+          <p>Hesaba özel şifreleri siteyi paylaşan kişiden alın. Gerçek danışan verisi girmeyin.</p>
         </div>
       )}
       <p className="small muted" style={{ marginTop: 30, fontSize: ".72rem" }}>

@@ -79,10 +79,20 @@ export const certificateConfig: EntityConfig = {
 export const educationConfig: EntityConfig = {
   endpoint: "education",
   title: "Eğitim ve yetkinlikler",
-  defaults: { institution: "", qualification: "", year: null, published: false, order: 0 },
+  defaults: {
+    institution: "",
+    qualification: "",
+    department: "",
+    degree: "",
+    year: null,
+    published: false,
+    order: 0,
+  },
   fields: [
     { key: "institution", label: "Kurum", required: true },
     { key: "qualification", label: "Eğitim / program adı", required: true },
+    { key: "department", label: "Bölüm Adı" },
+    { key: "degree", label: "Derece" },
     { key: "year", label: "Tamamlanma yılı", type: "number" },
     { key: "order", label: "Görüntüleme sırası", type: "number" },
     { key: "published", label: "Yayımla", type: "checkbox" },
@@ -120,7 +130,8 @@ export const availabilityConfig: EntityConfig = {
   ],
 };
 export const profileFields: Field[] = [
-  { key: "name", label: "Ad soyad", required: true },
+  { key: "firstName", label: "İsim", required: true },
+  { key: "lastName", label: "Soyisim", required: true },
   {
     key: "title",
     label: "Mesleki unvan",
@@ -133,11 +144,26 @@ export const profileFields: Field[] = [
   { key: "languages", label: "Konuşulan diller" },
   { key: "contactEmail", label: "İletişim e-postası" },
   { key: "contactPhone", label: "İletişim telefonu" },
+  { key: "address", label: "Adres", type: "textarea" },
+  { key: "instagramUrl", label: "Instagram Bağlantısı" },
+  { key: "linkedinUrl", label: "LinkedIn Bağlantısı" },
+  { key: "otherSocialUrl", label: "Diğer sosyal medya bağlantısı" },
   {
     key: "isPlaceholder",
     label: "Profil bilgileri henüz tamamlanmadı / örnektir",
     type: "checkbox",
   },
+];
+export const websiteFields: Field[] = [
+  { key: "siteName", label: "Site Adı", required: true },
+  { key: "browserTitle", label: "Tarayıcı başlığı", required: true },
+  { key: "description", label: "Web sitesi açıklaması", type: "textarea", required: true },
+  { key: "homeHeadline", label: "Ana sayfa başlığı", required: true },
+  { key: "homeDescription", label: "Ana sayfa açıklaması", type: "textarea", required: true },
+  { key: "showProfile", label: "Profili yayımla", type: "checkbox" },
+  { key: "showEducation", label: "Eğitim bölümünü yayımla", type: "checkbox" },
+  { key: "showCertificates", label: "Sertifikalar bölümünü yayımla", type: "checkbox" },
+  { key: "showBlog", label: "Blog bölümünü yayımla", type: "checkbox" },
 ];
 export const siteContentConfig: EntityConfig = {
   endpoint: "site-content",

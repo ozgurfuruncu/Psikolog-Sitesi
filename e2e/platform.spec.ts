@@ -3,7 +3,7 @@ import { db } from "../src/lib/db";
 import { randomUUID } from "node:crypto";
 import AxeBuilder from "@axe-core/playwright";
 import { addDays, localDate } from "../src/lib/i18n";
-const base = "http://localhost:3100";
+const base = "https://localhost:3100";
 const password = "Browser-only-test!123";
 async function capture(page: Page, path: string) {
   await expect(page.locator(".skeleton")).toHaveCount(0);
@@ -125,15 +125,9 @@ test("complete UI journey: register, verify, alternative, pay, room, feedback", 
   const ics = await page.request.get(`/api/appointments/${a.id}/ics`);
   expect(ics.ok()).toBeTruthy();
   expect(await ics.text()).toContain("BEGIN:VEVENT");
-  // Shift only this isolated test fixture to the current time to exercise the real server access window.
-  await db.appointment.update({
-    where: { id: a.id },
-    data: {
-      startsAt: new Date(Date.now() - 2 * 60_000),
-      endsAt: new Date(Date.now() + 48 * 60_000),
-      reservedUntil: new Date(Date.now() + 58 * 60_000),
-    },
-  });
+  await admin.goto(`/yonetim/randevular/${a.id}`);
+  await admin.getByRole("button", { name: "Demo odasını şimdi hazırla", exact: true }).click();
+  await expect(admin.getByText("Kurgusal görüşmenin saati şimdiye alındı. Demo odası hazır.", { exact: true })).toBeVisible();
   await page.goto(`/panel/gorusme/${a.id}`);
   await page.getByRole("button", { name: "Cihazlarımı test et" }).click();
   await expect
@@ -182,6 +176,7 @@ test("authorization, IDOR, CSRF, invalid webhooks and role injection", async ({ 
   await expect(page).toHaveURL(/giris/);
   await login(page);
   expect((await page.request.get("/api/admin/clients")).status()).toBe(403);
+  expect((await page.request.post("/api/admin/review-session", { data: { appointmentId: "demo-live" } })).status()).toBe(403);
   expect(
     (
       await page.request.post("/api/appointments/demo-pending", { data: { action: "approve" } })

@@ -28,6 +28,18 @@ npm.cmd run jobs
 
 The Windows helper uses the workspace's DOS short path when bootstrapping PostgreSQL to avoid a native initdb encoding issue with non-ASCII user directories. It binds PostgreSQL to `127.0.0.1:5432`, stores data in `.local/postgres`, and never alters an existing cluster. On systems without short paths, use Docker or an independently installed PostgreSQL server.
 
+### Telefondan yerel ağda açma
+
+Veritabanı terminali açıkken, çalışan site terminalini Ctrl+C ile durdurun ve şunu çalıştırın:
+
+```powershell
+npm.cmd run dev:lan
+```
+
+Telefonu bilgisayarla aynı modemin Wi-Fi ağına bağlayın. Terminalde `Telefondan ac:` satırında yazan `http://192.168...:3000` adresini telefon tarayıcısında açın; telefonda `localhost` kullanmayın. Bilgisayar Ethernet kablosuyla aynı modeme bağlı olabilir. Komut yerel IP adresini her başlatmada yeniden bulur; gerekirse bağdaştırıcı seçmek için önce `$env:LAN_IP="192.168.1.5"` ayarlayın.
+
+Bu komut sayfa dosyaları, oturum açma ve API kaynak kontrolleri için yalnızca seçilen ağ adresini ve bilgisayarın loopback adreslerini geliştirme ortamında kabul eder. `.env` dosyasını değiştirmez; üretim ortamının kaynak izinlerini genişletmez. Windows güvenlik duvarında Node.js erişiminin izinli olması gerekir. Misafir Wi-Fi/istemci izolasyonu cihazlar arası erişimi engelleyebilir. Bilgisayar ve iki terminal açık kalmalıdır; bu bir internet yayını değildir. Telefonda kamera/mikrofon için ayrıca güvenilir HTTPS gerekir.
+
 ## Docker database alternative
 
 Start Docker Desktop, then run `docker compose up -d`. The Compose file provides PostgreSQL and an optional Mailpit test mailbox. Do not run both the embedded and Docker databases on the same port. Set `DATABASE_URL` in `.env` for your chosen database, then migrate and seed as above. Embedded PostgreSQL and Docker are development conveniences; use a managed, restricted PostgreSQL service for production.
@@ -39,7 +51,7 @@ Start Docker Desktop, then run `docker compose up -d`. The Compose file provides
 | Client | `danisan@example.test` | `DEMO_CLIENT_PASSWORD` in your ignored local `.env` |
 | Administrator | `uzman@example.test` | `DEMO_ADMIN_PASSWORD` in your ignored local `.env` |
 
-`setup-env.mjs` generates unique secrets and demo passwords. Passwords are never printed, committed or returned by an API. Seeding requires `DEMO_MODE=true` and refuses `NODE_ENV=production`. Re-running the seed preserves existing records and passwords. Use `npm run demo:rotate-passwords` to rotate local demo passwords without logging them. All sample identities, appointments, prices, certificates and feedback are explicitly fictional.
+`setup-env.mjs` generates unique secrets and demo passwords. Passwords are never printed, committed or returned by an API. Seeding requires `DEMO_MODE=true` and refuses ordinary production databases. The separately gated public review uses only a `durak_review_<12 hex>` database, preview mail and mock payment/video providers. Re-running the seed preserves existing records and passwords. Use `npm run demo:rotate-passwords` to rotate local demo passwords without logging them. All sample identities, appointments, prices, certificates and feedback are explicitly fictional.
 
 To demonstrate a newly registered account, sign up, then use the demo administrator's **Geliştirme posta kutusu** at `/yonetim/posta` to open the verification email link. This inbox is administrator-only and unavailable in production. Alternatively configure SMTP/Mailpit. To refresh only the fictional current-time room for an immediate demo, run `npm run demo:session`; it refuses to overlap another active appointment.
 
@@ -71,7 +83,7 @@ public/images/           Local editorial imagery; no invented professional portr
 
 ## Configuration
 
-Copy/reference `.env.example`; `setup-env.mjs` generates a ready-to-run local `.env`. Never commit it. Change `DATABASE_URL`, `APP_URL`, `BETTER_AUTH_URL`, and secrets per environment. `BETTER_AUTH_SECRET` must be at least 32 random characters. `DEMO_MODE` is effective only in development or an explicitly isolated disposable E2E database.
+Copy/reference `.env.example`; `setup-env.mjs` generates a ready-to-run local `.env`. Never commit it. Change `DATABASE_URL`, `APP_URL`, `BETTER_AUTH_URL`, and secrets per environment. `BETTER_AUTH_SECRET` must be at least 32 random characters. `DEMO_MODE` is effective only in development, an explicitly isolated disposable E2E database, or the isolated public review defined in `render.yaml`.
 
 - Email: default `EMAIL_PROVIDER=preview`. Use `EMAIL_PROVIDER=smtp` with `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, optional credentials and `EMAIL_FROM`. For Mailpit: localhost:1025, secure=false; mailbox at http://localhost:8025. The worker claims outbox rows, retries up to five times and tracks delivery status. SMTP delivery is at-least-once; a provider may redeliver after an interrupted acknowledgement.
 - Payments: default `PAYMENT_PROVIDER=mock`, development only. The server simulates success/failure through signed events and persisted amount checks. `PAYMENT_PROVIDER=iyzico` selects the implemented **sandbox-only** hosted Checkout Form adapter. Supply sandbox keys and required test buyer information to the API. Hosted checkout/retrieve/webhook paths exist; merchant-dependent behavior is not live-tested. The client UI includes a clearly labeled sandbox test buyer form; use only provider-issued test identity/address data. Merchant-specific requirements still require verification before activation. No card information is collected or stored.

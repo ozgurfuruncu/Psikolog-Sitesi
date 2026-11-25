@@ -26,6 +26,17 @@ export async function storeFile(file: File, purpose: string) {
   const bytes = new Uint8Array(await file.arrayBuffer());
   inspectFile(bytes, file.type);
   const key = randomUUID();
+  if (process.env.FILE_STORAGE_PROVIDER === "database") {
+    return db.privateFile.create({
+      data: {
+        storageKey: key,
+        mimeType: file.type,
+        size: bytes.length,
+        purpose,
+        content: { create: { bytes } },
+      },
+    });
+  }
   await mkdir(root(), { recursive: true });
   await writeFile(resolve(root(), key), bytes, { flag: "wx" });
   try {
@@ -41,7 +52,11 @@ export async function loadFile(id: string) {
   const file = await db.privateFile.findUnique({ where: { id } });
   if (!file) fail("Dosya bulunamadı.", 404);
   if (!/^[0-9a-f-]{36}$/.test(file.storageKey)) fail("Dosya bulunamadı.", 404);
-  return { file, bytes: await readFile(resolve(root(), file.storageKey)) };
+  const content = await db.privateFileContent.findUnique({ where: { fileId: id } });
+  return {
+    file,
+    bytes: content ? Buffer.from(content.bytes) : await readFile(resolve(root(), file.storageKey)),
+  };
 }
 export function signedFileUrl(id: string) {
   const expires = Date.now() + 5 * 60_000;

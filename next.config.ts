@@ -2,6 +2,10 @@ import type { NextConfig } from "next";
 const config: NextConfig = {
   distDir: process.env.NEXT_DIST_DIR || ".next",
   devIndicators: false,
+  allowedDevOrigins: (process.env.DEV_LAN_ORIGINS || "")
+    .split(",")
+    .filter(Boolean)
+    .map((origin) => new URL(origin).hostname),
   experimental: { cpus: 2 },
   serverExternalPackages: ["pg", "@prisma/client", "@prisma/adapter-pg", "nodemailer"],
   poweredByHeader: false,
@@ -11,6 +15,9 @@ const config: NextConfig = {
         source: "/:path*",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
+          ...(process.env.REVIEW_MODE === "true"
+            ? [{ key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" }]
+            : []),
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=()" },

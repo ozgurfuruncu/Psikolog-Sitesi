@@ -5,6 +5,7 @@ node_modules/
 .env.local
 .env.*
 !.env.example
+!.env.review.example
 .local/
 src/generated/
 test-results/

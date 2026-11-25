@@ -1,5 +1,49 @@
 # Deployment and operations
 
+## 25 Kasım 2026 — paylaşılabilir demo yayını
+
+**Durum:** Henüz oluşturulmuş ve test edilmiş bir genel HTTPS adresi yok. Yerel üretim derlemesi, 43 uygulama testi, 12 yayın yapılandırması testi ve 23 Playwright testi geçti. iPhone Safari (WebKit), Android Chrome (Chromium), Firefox, masaüstü Chrome/Edge ve 320–1440 px kontrolleri yerel HTTPS üzerinde yapıldı; bunlar internet yayını testi değildir. Render eklenti kataloğunda kurulu görünüyor, fakat bu çalışma oturumunda Render yayın araçları sunulmuyor. GitHub bağlayıcısının bu depoya erişimi yok; yerel Git kimliğiyle depo erişimi doğrulandı.
+
+### Hazır yayın paketi
+
+Kaynak dalı: `review-20261125`. Varsayılan `render.yaml` yalnızca **Free** web servisi ve ayrı **Free** PostgreSQL oluşturur. Önceden hazırlanmış ücretli üretim şablonu `render.production.yaml` adıyla korunur; inceleme için kullanılmaz. Tasarım ve mevcut özellikler korunmuştur.
+
+- Next.js hem sayfaları hem API'yi çalıştırır. Better Auth doğrulamalı hesap, güvenli HTTPS çerezi, sunucuda oturum, kaynak denetimi ve veritabanı hız sınırlarını korur.
+- `APP_URL` ve `BETTER_AUTH_URL` başlangıçta Render'ın `RENDER_EXTERNAL_URL` değerinden alınır; telefona localhost callback gönderilmez.
+- `REVIEW_MODE=true` yalnızca `durak_review_<12 hex>` adlı ayrı veritabanında, mock ödeme/görüşme ve yöneticiye özel önizleme postasıyla çalışır. Normal üretim veritabanlarında demo korumaları sürer. Gerçek ödeme anahtarları reddedilir.
+- Randevular, kullanıcılar, oturumlar ve 5 MB'a kadar yüklemeler PostgreSQL'de saklanır. Dosya baytları `PrivateFileContent` tablosundadır ve herkese açık metadata sorgularına eklenmez. Ücretsiz web servisinin geçici diskine bağımlılık yoktur.
+- İlk açılışta şema geçişleri ve tekrar çalıştırılabilir seed otomatik yürür. Uygulamayla birlikte bildirim işleyicisi başlar. Ziyaretçinin veya kullanıcının yerel terminal çalıştırması gerekmez.
+- Parolalar ve sunucu anahtarları Render tarafından rastgele üretilir; repoya, tarayıcıya ve rapora yazılmaz. Seed yeniden çalışırken mevcut parolalar değişmez.
+- Arama motorları için `noindex, nofollow, noarchive`, robots meta verisi ve `robots.txt` kısıtlaması vardır. Bu ayarlar erişim kontrolünün yerine geçmez; yönetim işlevleri ADMIN yetkisi gerektirir.
+- Kayıt için kurgusal `@example.test` adresi gerekir. E-posta doğrulaması ve şifre yenileme bağlantısı `/yonetim/posta` üzerinden yalnızca demo uzmanına görünür. Gerçek e-posta gönderilmez; danışanla birlikte kayıt testi için uzman erişimi gerekir.
+- Demo uzmanı onaylı bir kurgusal randevuda **Demo odasını şimdi hazırla** düğmesini kullanabilir. İşlem randevu saatini şimdiye alır, çakışma kontrolü yapar ve denetim kaydı tutar. Kamera/mikrofon önizlemesi yereldir; gerçek klinik görüşme veya katılımcılar arası medya yoktur.
+
+### Kullanıcının tamamlayacağı somut adım
+
+Render araçları kullanılabilir hale geldiğinde yayın bu oturumdaki yetkiyle gerçekleştirilebilir. Aksi durumda terminal gerekmeden:
+
+1. [Bu dal için Render kurulumunu açın](https://render.com/deploy?repo=https://github.com/ozgurfuruncu/Psikolog-Sitesi/tree/review-20261125). Render hesabıyla giriş yapın.
+2. Gerekirse **Connect GitHub** ile yalnızca `ozgurfuruncu/Psikolog-Sitesi` deposunu yetkilendirin. Blueprint dalının `review-20261125`, dosyanın `render.yaml` olduğunu kontrol edin.
+3. Blueprint adı olarak `psikolog-inceleme` girin. `psikolog-review` web servisi ve `psikolog-review-db` veritabanının ikisi de **Free** olmalı. Ücretli yükseltme seçmeyin. **Deploy** düğmesine basın.
+4. [Render panelinde](https://dashboard.render.com/) `psikolog-review` → **Events** bölümünde **Live** durumunu bekleyin. Üstteki gerçek `https://…onrender.com` adresi paylaşılacak adrestir. Bu adres oluşmadan veya test edilmeden yayın tamamlandı sayılmaz.
+5. `psikolog-review` → **Environment** altında `DEMO_CLIENT_PASSWORD` ve `DEMO_ADMIN_PASSWORD` değerlerini kendi hesabınızdan görüntüleyin. Danışan: `danisan@example.test`; uzman: `uzman@example.test`. Uzman şifresini yalnızca özel bir kanaldan paylaşın; GitHub'a veya bu rapora eklemeyin.
+
+Bu kurulum mevcut `.env`, yerel veritabanı veya yerel demo şifrelerini buluta taşımaz. Render panelinin ücretli bir plan, ek kaynak veya ödeme talep etmesi halinde bu işlem için mevcut yetki yoktur.
+
+### Maliyet ve süre sınırı
+
+Seçilen kaynakların compute planı Free'dir. Render'ın [ücretsiz plan açıklamasına](https://render.com/docs/free) göre web servisi 15 dakika hareketsizlikten sonra uyur ve sonraki istekte yaklaşık bir dakika içinde açılır; ücretsiz PostgreSQL 30 gün sonra sona erer. Veri web uygulamasının yeniden başlatılmalarında korunur; 30 günlük veritabanı ömrünün ötesinde kalıcılık vaadi yoktur. Ücretsiz kullanım kotaları ve mevcut hesabın ücretlendirme ayarları geçerlidir. Bu işlemde ücretli abonelik veya kaynak oluşturulmadı. Kalıcı kullanım için ayrı ücretsiz veritabanı veya açık onayla ücretli plan değerlendirilmelidir.
+
+Bulut yayını başarıyla tamamlandığında kullanıcının bilgisayarının açık kalması gerekmez. Şu an henüz genel URL bulunmadığından bu koşul dış ağdan doğrulanmış değildir.
+
+### Gerçek genel adreste kabul testi
+
+`playwright.public.config.ts` yerel sunucu başlatmaz, sertifika hatalarını yoksaymaz ve localhost adresini kabul etmez. `.env.review.example` şablonunu yerelde göz ardı edilen `.env.review` dosyasına kopyalayıp gerçek URL ile yalnızca inceleme parolalarını sağlayın. Sonra geliştirici `npm run test:public` çalıştırır. Kullanıcının bunu ziyaret başına çalıştırması gerekmez.
+
+İki mobil proje ana sayfa/menü/profil/sertifikalar, iki demo rolü, yeni kurgusal kayıt ve e-posta doğrulama, yeniden yüklemede oturum, CSRF/yetki denetimi, randevu/onay, mock ödeme, takvim, demo odası, özel değerlendirme, ayar kaydı ve çıkışı genel URL üzerinden sınar. Testler yalnızca inceleme verileri oluşturur; ekran kaydı, trace ve otomatik ekran görüntüsü kapalıdır. Genel URL henüz bulunmadığı için bu testler **çalıştırılmadı**; yalnızca yapılandırma/test keşfi doğrulandı.
+
+Platform değerlendirmesi: Render mevcut Node.js/PostgreSQL mimarisini doğrudan çalıştırır. [Vercel](https://vercel.com/docs/functions/runtimes) için kalıcı dosya sistemi ve işleyici ayrıca ele alınmalıdır. [Railway](https://docs.railway.com/pricing/free-plan) ücretsiz kaynak kotasıyla alternatif olabilir. Mevcut Sites barındırması Cloudflare Worker çıktısı ve HTTP tabanlı bağlantılar beklediğinden bu Node.js/PostgreSQL uygulamasının birebir yayını için uygun değildir; framework/veritabanı dönüşümü yapılmadı.
+
 ## Local verified topology
 
 Next.js on localhost:3000 → Prisma adapter → PostgreSQL 17 on 127.0.0.1:5432. The optional worker runs the durable notification cycle every minute. Private files and the embedded database are under ignored `.local/`. No application has been published externally.

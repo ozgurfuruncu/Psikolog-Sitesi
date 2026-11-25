@@ -19,11 +19,13 @@ import {
 import { db } from "@/lib/db";
 import { formatDate } from "@/lib/i18n";
 import { signedFileUrl } from "@/lib/files";
+import { getSite, getProfile } from "@/lib/site";
 export const dynamic = "force-dynamic";
 export default async function Home() {
+  const site = await getSite();
   const [services, profile, faqs, posts, announcements, contents] = await Promise.all([
     db.service.findMany({ where: { active: true }, orderBy: { order: "asc" }, take: 3 }),
-    db.psychologistProfile.findUnique({ where: { id: "primary" } }),
+    getProfile(),
     db.fAQ.findMany({ where: { published: true }, orderBy: { order: "asc" }, take: 4 }),
     db.blogPost.findMany({
       where: { published: true, reviewed: true },
@@ -47,8 +49,10 @@ export default async function Home() {
         <div className="container">
           <div className="hero-grid">
             <div className="hero-copy">
-              <p className="eyebrow">DURAK · ONLİNE GÖRÜŞME PLATFORMU</p>
-              {introduction ? (
+              <p className="eyebrow">{site.siteName} · ONLİNE GÖRÜŞME PLATFORMU</p>
+              {site.homeHeadline ? (
+                <h1>{site.homeHeadline}</h1>
+              ) : introduction ? (
                 <h1>{introduction.title}</h1>
               ) : (
                 <h1>
@@ -58,7 +62,8 @@ export default async function Home() {
                 </h1>
               )}
               <p>
-                {introduction?.body ||
+                {site.homeDescription ||
+                  introduction?.body ||
                   "Bazen ihtiyacımız olan, durup kendimizi duyabileceğimiz bir alandır. Kendinizi tanımaya ve hayatınıza dair konuşmaya kendi ritminizde başlayın."}
               </p>
               <div className="button-row">
@@ -231,47 +236,50 @@ export default async function Home() {
           </div>
         </div>
       </section>
-      <section className="section">
-        <div className="container profile-block">
-          <div className="profile-placeholder">
-            {profile?.photoFileId ? (
-              <Image
-                src={signedFileUrl(profile.photoFileId)}
-                alt="Uzman profil fotoğrafı"
-                width={600}
-                height={600}
-                unoptimized
-              />
-            ) : (
-              <>
-                <UserRound size={85} strokeWidth={0.65} />
-                <span>Uzman fotoğrafı eklenecek</span>
-              </>
-            )}
-          </div>
-          <div className="profile-copy">
-            <p className="eyebrow">UZMANINIZI TANIYIN</p>
-            {profile?.isPlaceholder && (
-              <span className="draft-label">Bilgiler henüz tamamlanmadı</span>
-            )}
-            <h2>{profile?.isPlaceholder ? "Güven, tanımakla başlar." : profile?.name}</h2>
-            <p>{profile?.biography}</p>
-            <div className="profile-meta">
-              <span>
-                <GraduationCap size={18} />
-                Eğitim ve yetkinlikler
-              </span>
-              <span>
-                <Languages size={18} />
-                {profile?.languages || "Türkçe"}
-              </span>
+      {site.showProfile && (
+        <section className="section">
+          <div className="container profile-block">
+            <div className="profile-placeholder">
+              {profile?.photoFileId ? (
+                <Image
+                  src={signedFileUrl(profile.photoFileId)}
+                  alt="Uzman profil fotoğrafı"
+                  width={600}
+                  height={600}
+                  unoptimized
+                />
+              ) : (
+                <>
+                  <UserRound size={85} strokeWidth={0.65} />
+                  <span>Profil Fotoğrafı</span>
+                </>
+              )}
             </div>
-            <Link className="btn btn-outline" href="/hakkinda">
-              Uzman profilini inceleyin
-            </Link>
+            <div className="profile-copy">
+              <p className="eyebrow">UZMANINIZI TANIYIN</p>
+              {profile?.isPlaceholder && (
+                <span className="draft-label">Bilgiler henüz tamamlanmadı</span>
+              )}
+              <h2>{profile?.name || "İsim Soyisim"}</h2>
+              <p>{profile?.title || "Mesleki Unvan"}</p>
+              <p>{profile?.biography}</p>
+              <div className="profile-meta">
+                <span>
+                  <GraduationCap size={18} />
+                  Eğitim ve yetkinlikler
+                </span>
+                <span>
+                  <Languages size={18} />
+                  {profile?.languages || "Konuşulan Diller"}
+                </span>
+              </div>
+              <Link className="btn btn-outline" href="/hakkinda">
+                Uzman profilini inceleyin
+              </Link>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
       <section className="section soft-section faq-section">
         <div className="container faq-layout">
           <div>
@@ -295,59 +303,61 @@ export default async function Home() {
           </div>
         </div>
       </section>
-      <section className="section">
-        <div className="container">
-          <div className="section-head">
-            <div>
-              <p className="eyebrow">BİLGİ VE PAYLAŞIM</p>
-              <h2>Biraz okumaya alan açın.</h2>
+      {site.showBlog && (
+        <section className="section">
+          <div className="container">
+            <div className="section-head">
+              <div>
+                <p className="eyebrow">BİLGİ VE PAYLAŞIM</p>
+                <h2>Biraz okumaya alan açın.</h2>
+              </div>
+              <Link className="text-link" href="/blog">
+                Tüm yazıları keşfedin
+              </Link>
             </div>
-            <Link className="text-link" href="/blog">
-              Tüm yazıları keşfedin
-            </Link>
+            {posts.length ? (
+              <div className="grid-3">
+                {posts.map((post, i) => (
+                  <Link href={`/blog/${post.slug}`} className="blog-card" key={post.id}>
+                    <div className={`blog-art blog-art-${i}`}>
+                      {post.imageFileId ? (
+                        <Image
+                          src={signedFileUrl(post.imageFileId)}
+                          alt=""
+                          width={600}
+                          height={300}
+                          unoptimized
+                        />
+                      ) : i === 0 ? (
+                        <Image
+                          src="/images/forest.jpg"
+                          alt="Güneş ışığının süzüldüğü yeşil orman"
+                          width={600}
+                          height={300}
+                        />
+                      ) : (
+                        <BookOpen size={50} strokeWidth={0.7} />
+                      )}
+                    </div>
+                    <div className="blog-body">
+                      <span className="blog-category">
+                        {post.category?.name || "Platform rehberi"}
+                      </span>
+                      <h3>{post.title}</h3>
+                      <p>{post.excerpt}</p>
+                      <time className="blog-date">
+                        {formatDate(post.publishedAt || post.createdAt)}
+                      </time>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p>Uzman incelemesinden geçen yazılar burada paylaşılacak.</p>
+            )}
           </div>
-          {posts.length ? (
-            <div className="grid-3">
-              {posts.map((post, i) => (
-                <Link href={`/blog/${post.slug}`} className="blog-card" key={post.id}>
-                  <div className={`blog-art blog-art-${i}`}>
-                    {post.imageFileId ? (
-                      <Image
-                        src={signedFileUrl(post.imageFileId)}
-                        alt=""
-                        width={600}
-                        height={300}
-                        unoptimized
-                      />
-                    ) : i === 0 ? (
-                      <Image
-                        src="/images/forest.jpg"
-                        alt="Güneş ışığının süzüldüğü yeşil orman"
-                        width={600}
-                        height={300}
-                      />
-                    ) : (
-                      <BookOpen size={50} strokeWidth={0.7} />
-                    )}
-                  </div>
-                  <div className="blog-body">
-                    <span className="blog-category">
-                      {post.category?.name || "Platform rehberi"}
-                    </span>
-                    <h3>{post.title}</h3>
-                    <p>{post.excerpt}</p>
-                    <time className="blog-date">
-                      {formatDate(post.publishedAt || post.createdAt)}
-                    </time>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <p>Uzman incelemesinden geçen yazılar burada paylaşılacak.</p>
-          )}
-        </div>
-      </section>
+        </section>
+      )}
       <div className="container">
         <div className="cta-section">
           <div>
